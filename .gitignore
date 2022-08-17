@@ -1,0 +1,9 @@
+.vscode
+.idea
+*.pyc
+.DS_Store
+pandoc/iotdb
+pandoc/img
+pandoc/include_format.txt
+pandoc/result_*.docx
+pandoc/log
