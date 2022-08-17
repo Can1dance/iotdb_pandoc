@@ -1,0 +1,68 @@
+name: auto generate docs
+on:
+#  push:
+#    branches:
+#      - master
+  workflow_dispatch:
+
+jobs:
+#--------
+  check-commit:
+    runs-on: ubuntu-latest
+    steps:
+# get pandoc
+      - name: get pandoc
+        run: |
+          wget https://github.com/jgm/pandoc/releases/download/2.19/pandoc-2.19-linux-amd64.tar.gz
+          tar -zxvf pandoc-2.19-linux-amd64.tar.gz
+# clone iotdb
+      - name: checkout apache/iotdb
+        uses: actions/checkout@v2
+        with:
+          path: iotdb
+          repository: 'apache/iotdb'
+          ref: 'rel/0.13'
+          fetch-depth: 0
+# clone 本程序
+      - name: checkout iotdb-daily-build
+        uses: actions/checkout@v2
+        with:
+          path: test_iotdb_pandoc
+          repository: 'xiaoyekanren/test_iotdb_pandoc'
+          ref: master
+          fetch-depth: 0
+# generate
+      - name: generate
+        env:
+          PYTHONPATH: ${{ github.workspace }}/iotdb-private-tool/pandoc
+        run: |
+          export PATH=$PATH:${{ github.workspace }}/pandoc-2.19/bin
+          cd ${{ github.workspace }}/iotdb/docs/zh/UserGuide
+          doc_abs_path=`pwd`
+          cd ${{ github.workspace }}/test_iotdb_pandoc/pandoc/
+          python3 startup.py ${doc_abs_path}
+
+          cd ${{ github.workspace }}
+          tar zcvf test_iotdb_pandoc.tar.gz test_iotdb_pandoc
+#          cat include_format.txt
+#          file_list=$(cat include_format.txt)
+#          pandoc -f markdown -t docx -o result.docx --reference-doc template.docx --log=log "$file_list"
+#          cd ${{ github.workspace }}
+#          find ./ -name "result.docx"
+
+# 上传iotdb包
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.FILE_SERVER_IP }}
+          username: ${{ secrets.FILE_SERVER_IP_USER }}
+          password: ${{ secrets.FILE_SERVER_IP_PASSWORD }}
+          port: ${{ secrets.FILE_SERVER_IP_PORT }}
+          timeout: 120s
+          command_timeout: 60m
+#          source: "${{ github.workspace }}/test_iotdb_pandoc/pandoc/result.docx"
+          source: "${{ github.workspace }}/test_iotdb_pandoc.tar.gz"
+          target: "files"
+          tar_tmp_path: "/tmp"
+          # strip_components - remove the specified number of leading path elements.
+          # strip_components: 3
